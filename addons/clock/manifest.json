@@ -1,0 +1,38 @@
+{
+    "id": "clock",
+    "name": "Clock",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "ClockWidget.qml",
+    "app": "ClockApp.qml",
+    "appIcon": "◷",
+    "appDescription": "World clocks and time zones",
+    "minSize": { "w": 2, "h": 1 },
+    "defaultSize": { "w": 3, "h": 2 },
+    "settings": [
+        {
+            "key": "format24h",
+            "label": "24-hour clock",
+            "type": "bool",
+            "default": true
+        },
+        {
+            "key": "showSeconds",
+            "label": "Show seconds",
+            "type": "bool",
+            "default": true
+        },
+        {
+            "key": "analog",
+            "label": "Analog dials",
+            "type": "bool",
+            "default": false
+        },
+        {
+            "key": "showSystem",
+            "label": "Show local clock",
+            "type": "bool",
+            "default": true
+        }
+    ]
+}

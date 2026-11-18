@@ -1,0 +1,32 @@
+{
+    "id": "weather",
+    "name": "Weather",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "WeatherWidget.qml",
+    "app": "WeatherApp.qml",
+    "appIcon": "☁",
+    "appDescription": "Hourly and 7-day forecast",
+    "minSize": { "w": 3, "h": 2 },
+    "defaultSize": { "w": 5, "h": 2 },
+    "settings": [
+        {
+            "key": "location",
+            "label": "Location (city name)",
+            "type": "string",
+            "default": "Berlin"
+        },
+        {
+            "key": "units",
+            "label": "Units (metric or imperial)",
+            "type": "string",
+            "default": "metric"
+        },
+        {
+            "key": "refreshMinutes",
+            "label": "Refresh every (minutes)",
+            "type": "int",
+            "default": 30
+        }
+    ]
+}
