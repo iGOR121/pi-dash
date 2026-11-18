@@ -1,0 +1,17 @@
+[Unit]
+Description=pi-dash touchscreen dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/pi-dash
+Environment=QT_QPA_PLATFORM=eglfs
+Environment=QT_QPA_EGLFS_HIDECURSOR=1
+ExecStart=/home/pi/pi-dash/.venv/bin/python /home/pi/pi-dash/main.py --fullscreen
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

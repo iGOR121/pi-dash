@@ -1,0 +1,17 @@
+{
+    "id": "demo-toggle",
+    "name": "Switch (demo)",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "ToggleWidget.qml",
+    "minSize": { "w": 1, "h": 1 },
+    "defaultSize": { "w": 2, "h": 2 },
+    "settings": [
+        {
+            "key": "label",
+            "label": "Label",
+            "type": "string",
+            "default": "Toggle"
+        }
+    ]
+}

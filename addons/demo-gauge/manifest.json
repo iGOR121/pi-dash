@@ -1,0 +1,41 @@
+{
+    "id": "demo-gauge",
+    "name": "Gauge (demo)",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "GaugeWidget.qml",
+    "minSize": { "w": 1, "h": 1 },
+    "defaultSize": { "w": 2, "h": 2 },
+    "settings": [
+        {
+            "key": "label",
+            "label": "Label",
+            "type": "string",
+            "default": "Power"
+        },
+        {
+            "key": "unit",
+            "label": "Unit",
+            "type": "string",
+            "default": "W"
+        },
+        {
+            "key": "min",
+            "label": "Minimum value",
+            "type": "real",
+            "default": 0
+        },
+        {
+            "key": "max",
+            "label": "Maximum value",
+            "type": "real",
+            "default": 100
+        },
+        {
+            "key": "demo",
+            "label": "Animated demo value",
+            "type": "bool",
+            "default": true
+        }
+    ]
+}

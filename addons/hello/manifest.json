@@ -1,0 +1,17 @@
+{
+    "id": "hello",
+    "name": "Hello (template)",
+    "version": "0.1.0",
+    "author": "your name here",
+    "entry": "HelloWidget.qml",
+    "minSize": { "w": 1, "h": 1 },
+    "defaultSize": { "w": 2, "h": 2 },
+    "settings": [
+        {
+            "key": "text",
+            "label": "Text",
+            "type": "string",
+            "default": "Hello, addon!"
+        }
+    ]
+}

@@ -1,0 +1,2 @@
+# Desktop (Fedora) wants the newest; deploy/setup-pi.sh pins per glibc.
+PySide6-Essentials>=6.6,<7
