@@ -1,0 +1,20 @@
+{
+    "id": "bluetooth",
+    "name": "Bluetooth",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "BluetoothWidget.qml",
+    "app": "BluetoothApp.qml",
+    "appIcon": "◉",
+    "appDescription": "Pair HID devices, manage A2DP audio and codecs",
+    "minSize": { "w": 2, "h": 1 },
+    "defaultSize": { "w": 2, "h": 2 },
+    "settings": [
+        {
+            "key": "adapterName",
+            "label": "Bluetooth adapter name",
+            "type": "string",
+            "default": "pi-dash"
+        }
+    ]
+}
