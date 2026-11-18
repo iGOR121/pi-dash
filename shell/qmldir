@@ -1,0 +1,15 @@
+module shell
+singleton Theme Theme.qml
+WidgetBase WidgetBase.qml
+DashletBase DashletBase.qml
+NotificationsPage NotificationsPage.qml
+DashletsPage DashletsPage.qml
+WidgetGrid WidgetGrid.qml
+WidgetSlot WidgetSlot.qml
+DashButton DashButton.qml
+SettingsSheet SettingsSheet.qml
+AddWidgetSheet AddWidgetSheet.qml
+SettingsPage SettingsPage.qml
+PagesSheet PagesSheet.qml
+CastOverlay CastOverlay.qml
+LockScreen LockScreen.qml
