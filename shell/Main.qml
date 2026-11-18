@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import shell
 
 Window {
@@ -17,6 +18,10 @@ Window {
     property int gridCols: 8
     property int gridRows: 5
     property var widgetModel: []
+    property var widgetPages: []
+    property int widgetPageIndex: 0
+    property string widgetPageId: ""
+    property bool widgetPagesReady: false
     property bool editMode: false
     property string wallpaperUrl: ""
     property string wallpaperMode: "fill"
@@ -25,9 +30,10 @@ Window {
 
     // Pages: 0 = notifications, 1 = widgets, 2 = dashlets
     property int currentPage: 1
-    property int pendingPage: -1
-    // Exposed for tests / debugging: exact pixel offset of the pager.
-    readonly property real pageOffset: pager.contentX
+    // True when the pager is exactly on a page boundary (not between pages).
+    readonly property bool pageSettled: pager.contentItem
+        ? Math.abs(pager.contentItem.contentX - pager.currentIndex * pager.width) < 1
+        : true
     property var appCatalog: []
     property int notificationCount: 0
     property bool appsExpanded: false
@@ -74,7 +80,71 @@ Window {
     }
 
     function refreshModel() {
+        // Ignore the pager's transient index changes while the model is
+        // rebuilt, otherwise an initial 0 would overwrite the main page.
+        win.widgetPagesReady = false
+
         win.widgetModel = Host.widgetModel()
+
+        const pages = Host.widgetPages()
+        win.widgetPages = pages
+        let index = -1
+        if (win.widgetPageId) {
+            index = pages.findIndex(function (page) {
+                return page.id === win.widgetPageId
+            })
+        }
+        if (index < 0) {
+            index = pages.findIndex(function (page) { return page.main })
+            if (index < 0)
+                index = 0
+        }
+        win.widgetPageIndex = Math.max(0, index)
+        win.widgetPageId = pages[win.widgetPageIndex]
+                             ? pages[win.widgetPageIndex].id : ""
+        Qt.callLater(win.syncWidgetPage)
+    }
+
+    function syncWidgetPage() {
+        if (win.widgetPages.length === 0) {
+            win.widgetPagesReady = true
+            return
+        }
+        let index = win.widgetPages.findIndex(function (page) {
+            return page.id === win.widgetPageId
+        })
+        if (index < 0) {
+            index = win.widgetPages.findIndex(function (page) {
+                return page.main
+            })
+            if (index < 0)
+                index = 0
+        }
+        win.widgetPageIndex = index
+        win.widgetPageId = win.widgetPages[index].id
+        widgetPager.currentIndex = index
+        win.widgetPagesReady = true
+    }
+
+    function goToWidgetPage(index) {
+        if (win.widgetPages.length === 0)
+            return
+        index = Math.max(0, Math.min(win.widgetPages.length - 1, index))
+        win.widgetPageIndex = index
+        win.widgetPageId = win.widgetPages[index].id
+        widgetPager.currentIndex = index
+    }
+
+    function goToWidgetPageById(pageId) {
+        const index = win.widgetPages.findIndex(function (page) {
+            return page.id === pageId
+        })
+        if (index >= 0)
+            win.goToWidgetPage(index)
+    }
+
+    function openPagesSheet() {
+        pagesSheet.open()
     }
 
     function setLocked(value) {
@@ -85,15 +155,7 @@ Window {
         index = Math.max(0, Math.min(2, index))
         win.currentPage = index
         win.appsExpanded = false
-        if (pager.width <= 0) {
-            // called before layout (e.g. from a tool); apply on first resize
-            win.pendingPage = index
-            return
-        }
-        snapAnim.stop()
-        snapAnim.from = pager.contentX
-        snapAnim.to = index * pager.width
-        snapAnim.start()
+        pager.currentIndex = index
     }
 
     function openSettingsFor(instanceId) {
@@ -120,7 +182,7 @@ Window {
     }
 
     function openAddSheet() {
-        addSheet.open(Host.addonCatalog())
+        addSheet.open(Host.addonCatalog(), win.widgetPageId)
     }
 
     function openSettings() {
@@ -170,9 +232,11 @@ Window {
         win.appCatalog = Host.appCatalog()
         win.notificationCount = Host.notificationCount()
         win.locked = Host.startLocked()
-        Qt.callLater(function () {
-            pager.contentX = win.currentPage * pager.width
-        })
+        pager.currentIndex = win.currentPage
+
+        const uxplay = Host.appSettings("uxplay")
+        if (uxplay && uxplay.autoStart === true)
+            UxPlay.start()
     }
 
     onLockedChanged: {
@@ -181,6 +245,7 @@ Window {
             win.appsExpanded = false
             settingsSheet.close()
             addSheet.close()
+            pagesSheet.close()
             settingsPage.close()
         }
     }
@@ -216,7 +281,8 @@ Window {
         id: idleTimer
 
         interval: Math.max(1, win.autoLockSeconds) * 1000
-        running: !win.locked && win.autoLockSeconds > 0
+        // don't lock / blank the screen while an AirPlay video is playing
+        running: !win.locked && win.autoLockSeconds > 0 && !UxPlay.videoActive
         repeat: false
         onTriggered: win.setLocked(true)
     }
@@ -299,7 +365,9 @@ Window {
     }
 
     // ------------------------------------------------------------------ pages
-    Flickable {
+    // SwipeView handles the paging threshold and always settles on one page
+    // (a plain Flickable can be released between two pages).
+    SwipeView {
         id: pager
 
         anchors {
@@ -309,49 +377,13 @@ Window {
             bottom: parent.bottom
             bottomMargin: win.editMode ? 0 : 44
         }
-        contentWidth: width * 3
-        contentHeight: height
-        flickableDirection: Flickable.HorizontalFlick
-        boundsBehavior: Flickable.StopAtBounds
+        currentIndex: 1
         interactive: !win.locked && !win.editMode && win.openApp === ""
 
-        // Always settle on a page boundary, even after a short drag that did
-        // not change the nearest page (otherwise it stops between pages).
-        onMovementEnded: {
-            const index = Math.max(0, Math.min(2, Math.round(contentX / width)))
-            win.goToPage(index)
-        }
-
-        onContentXChanged: {
-            if (snapAnim.running)
-                return
-            const index = Math.round(contentX / Math.max(1, width))
-            if (index !== win.currentPage && index >= 0 && index <= 2)
-                win.currentPage = index
-        }
-
-        onWidthChanged: {
-            if (win.pendingPage >= 0) {
-                win.currentPage = win.pendingPage
-                contentX = win.pendingPage * width
-                win.pendingPage = -1
-            } else {
-                contentX = win.currentPage * width
-            }
-        }
-
-        NumberAnimation {
-            id: snapAnim
-            target: pager
-            property: "contentX"
-            duration: 220
-            easing.type: Easing.OutCubic
-            onStopped: win.currentPage = Math.round(pager.contentX / Math.max(1, pager.width))
-        }
+        onCurrentIndexChanged: win.currentPage = currentIndex
 
         // page 0 — notifications
         Item {
-            x: 0
             width: pager.width
             height: pager.height
 
@@ -363,49 +395,74 @@ Window {
 
         // page 1 — widgets
         Item {
-            x: pager.width
             width: pager.width
             height: pager.height
 
-            // Long-press empty space (no widget under the finger) to edit.
-            TapHandler {
-                enabled: !win.editMode && !win.locked
-                onLongPressed: win.editMode = true
-            }
-
-            WidgetGrid {
-                id: grid
+            // Vertical stack of widget pages. The main page is selected on
+            // startup; swipe up/down (or use the edit-mode page arrows).
+            SwipeView {
+                id: widgetPager
 
                 anchors.fill: parent
-                anchors.topMargin: win.editMode ? 54 : 0
-                anchors.bottomMargin: win.editMode ? 62 : 0
-                enabled: !win.locked
-                cols: win.gridCols
-                rows: win.gridRows
-                model: win.widgetModel
-                editMode: win.editMode
-                hasWallpaper: win.wallpaperUrl !== ""
+                orientation: Qt.Vertical
+                interactive: !win.editMode && !win.locked
+                             && win.openApp === ""
 
-                onEditRequested: {
-                    win.goToPage(1)
-                    win.editMode = true
+                onCurrentIndexChanged: {
+                    if (!win.widgetPagesReady)
+                        return
+                    win.widgetPageIndex = currentIndex
+                    if (win.widgetPages[currentIndex])
+                        win.widgetPageId = win.widgetPages[currentIndex].id
                 }
-                onSettingsRequested: function (instanceId, addonName, schema, settings) {
-                    let shared = false
-                    for (let i = 0; i < win.widgetModel.length; ++i)
-                        if (win.widgetModel[i].instanceId === instanceId)
-                            shared = win.widgetModel[i].hasApp === true
-                    settingsSheet.open(instanceId, addonName, schema, settings, shared)
-                }
-                onAppRequested: function (addonId) {
-                    win.openDashlet(addonId)
+
+                Repeater {
+                    model: win.widgetPages
+
+                    delegate: Item {
+                        required property var modelData
+                        required property int index
+
+                        TapHandler {
+                            enabled: !win.editMode && !win.locked
+                            onLongPressed: win.editMode = true
+                        }
+
+                        WidgetGrid {
+                            anchors.fill: parent
+                            anchors.topMargin: win.editMode ? 54 : 0
+                            anchors.bottomMargin: win.editMode ? 62 : 0
+                            enabled: !win.locked
+                            cols: win.gridCols
+                            rows: win.gridRows
+                            model: win.widgetModel.filter(function (widget) {
+                                return widget.page === modelData.id
+                            })
+                            editMode: win.editMode
+                            hasWallpaper: win.wallpaperUrl !== ""
+
+                            onEditRequested: {
+                                win.goToPage(1)
+                                win.editMode = true
+                            }
+                            onSettingsRequested: function (instanceId, addonName, schema, settings) {
+                                let shared = false
+                                for (let i = 0; i < win.widgetModel.length; ++i)
+                                    if (win.widgetModel[i].instanceId === instanceId)
+                                        shared = win.widgetModel[i].hasApp === true
+                                settingsSheet.open(instanceId, addonName, schema, settings, shared)
+                            }
+                            onAppRequested: function (addonId) {
+                                win.openDashlet(addonId)
+                            }
+                        }
+                    }
                 }
             }
         }
 
         // page 2 — dashlets
         Item {
-            x: pager.width * 2
             width: pager.width
             height: pager.height
 
@@ -531,7 +588,15 @@ Window {
                 leftMargin: 14
                 verticalCenter: parent.verticalCenter
             }
-            text: ["Notifications", "Widgets", "Dashlets"][win.currentPage] || ""
+            text: {
+                if (win.currentPage === 1 && win.widgetPages.length > 1) {
+                    const page = win.widgetPages[win.widgetPageIndex]
+                    return "↑↓ " + (page ? page.name : "Widgets")
+                           + "  ·  " + (win.widgetPageIndex + 1)
+                           + "/" + win.widgetPages.length
+                }
+                return ["Notifications", "Widgets", "Dashlets"][win.currentPage] || ""
+            }
             color: Theme.textMuted
             font.pixelSize: 12
             font.weight: Font.DemiBold
@@ -807,7 +872,52 @@ Window {
         }
 
         DashButton {
+            anchors {
+                left: parent.left
+                leftMargin: 12
+                verticalCenter: parent.verticalCenter
+            }
+            text: "Pages"
+            onClicked: win.openPagesSheet()
+        }
+
+        Row {
             anchors.centerIn: parent
+            spacing: 8
+
+            DashButton {
+                width: 40
+                height: 36
+                text: "‹"
+                enabled: win.widgetPageIndex > 0
+                onClicked: win.goToWidgetPage(win.widgetPageIndex - 1)
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: (win.widgetPageIndex + 1) + " / " + win.widgetPages.length
+                      + (win.widgetPages[win.widgetPageIndex]
+                         && win.widgetPages[win.widgetPageIndex].main
+                         ? "  ·  Main" : "")
+                color: Theme.textMuted
+                font.pixelSize: 12
+            }
+
+            DashButton {
+                width: 40
+                height: 36
+                text: "›"
+                enabled: win.widgetPageIndex < win.widgetPages.length - 1
+                onClicked: win.goToWidgetPage(win.widgetPageIndex + 1)
+            }
+        }
+
+        DashButton {
+            anchors {
+                right: parent.right
+                rightMargin: 12
+                verticalCenter: parent.verticalCenter
+            }
             text: "+  Add widget"
             onClicked: win.openAddSheet()
         }
@@ -824,10 +934,28 @@ Window {
         onAdded: Qt.callLater(win.refreshModel)
     }
 
+    PagesSheet {
+        id: pagesSheet
+        anchors.fill: parent
+        pages: win.widgetPages
+        currentId: win.widgetPageId
+        onPageCreated: function (pageId) {
+            pagesSheet.close()
+            Qt.callLater(function () { win.goToWidgetPageById(pageId) })
+        }
+    }
+
     SettingsPage {
         id: settingsPage
         anchors.fill: parent
         onLockNow: win.setLocked(true)
+    }
+
+    CastOverlay {
+        id: castOverlay
+        anchors.fill: parent
+        visible: UxPlay.videoActive && !win.locked
+        onCloseRequested: UxPlay.stop()
     }
 
     LockScreen {
