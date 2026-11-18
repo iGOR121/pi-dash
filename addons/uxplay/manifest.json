@@ -1,0 +1,44 @@
+{
+    "id": "uxplay",
+    "name": "AirPlay",
+    "version": "0.1.0",
+    "author": "pi-dash",
+    "entry": "UxPlayWidget.qml",
+    "app": "UxPlayApp.qml",
+    "appIcon": "▣",
+    "appDescription": "AirPlay receiver (UxPlay) with video cast",
+    "minSize": { "w": 2, "h": 1 },
+    "defaultSize": { "w": 2, "h": 2 },
+    "settings": [
+        {
+            "key": "binary",
+            "label": "UxPlay binary",
+            "type": "string",
+            "default": "uxplay"
+        },
+        {
+            "key": "serverName",
+            "label": "AirPlay server name",
+            "type": "string",
+            "default": "pi-dash"
+        },
+        {
+            "key": "videoPort",
+            "label": "Video RTP port",
+            "type": "int",
+            "default": 5010
+        },
+        {
+            "key": "extraArgs",
+            "label": "Extra uxplay arguments",
+            "type": "string",
+            "default": ""
+        },
+        {
+            "key": "autoStart",
+            "label": "Start receiver at boot",
+            "type": "bool",
+            "default": false
+        }
+    ]
+}
